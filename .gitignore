@@ -1,0 +1,22 @@
+# Compiled output
+target/
+build/
+
+# Liberty runtime (downloaded by liberty-maven-plugin)
+finish/src/main/liberty/wlp/
+start/src/main/liberty/wlp/
+
+# Maven wrapper metadata
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+*.swp
+*~
+
+# macOS
+.DS_Store

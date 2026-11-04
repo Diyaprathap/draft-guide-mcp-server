@@ -1,0 +1,408 @@
+// Copyright (c) 2026 IBM Corporation and others.
+// Licensed under Creative Commons Attribution-NoDerivatives
+// 4.0 International (CC BY-ND 4.0)
+//   https://creativecommons.org/licenses/by-nd/4.0/
+//
+// Contributors:
+//     IBM Corporation
+//
+:projectid: mcp-server
+:page-layout: guide-multipane
+:page-duration: 30 minutes
+:page-releasedate: 2026-11-02
+:page-guide-category: none
+:page-description: Learn how to expose your Open Liberty application's business logic as AI-callable tools by using the Model Context Protocol (mcp-1.0) feature, and compare it with exposing the same logic through REST.
+:guide-author: Open Liberty
+:page-tags: ['jakarta-ee']
+:page-related-guides: ['rest-intro']
+:page-permalink: /guides/{projectid}
+:page-seo-title: Exposing Liberty Business Logic as AI Tools using Model Context Protocol
+:page-seo-description: A getting started tutorial on how to use the Open Liberty mcp-1.0 feature to expose system properties and the current date and time as AI-callable tools using @Tool and @ToolArg annotations, secure a tool with @RolesAllowed, test with the MCP Inspector, and connect to AI clients. Related guide: rest-intro.
+:common-includes: https://raw.githubusercontent.com/OpenLiberty/guides-common/prod
+:source-highlighter: prettify
+= Exposing Java business logic as AI tools with Model Context Protocol in Open Liberty
+
+[.hidden]
+NOTE: This repository contains the guide documentation source. To view the guide in published form, view it on the https://openliberty.io/guides/{projectid}.html[Open Liberty website].
+
+Learn how to expose your Open Liberty application's business logic as AI-callable tools by using the Model Context Protocol (mcp-1.0) feature, and compare it with exposing the same logic through REST.
+
+// =================================================================================================
+// What you'll learn
+// =================================================================================================
+
+== What you'll learn
+
+You will learn how to expose methods of a CDI managed bean as tools that AI agents can discover and call by using the https://modelcontextprotocol.io[Model Context Protocol^] (MCP). AI models can't be retrained every time your enterprise data changes. MCP gives agents a standard way to call live Java code at runtime over Streamable HTTP instead.
+
+The application that you build has a CDI bean, `SystemTools`, with two tools:
+
+* `getSystemProperties` returns the JVM system properties. Only users in the `admin` role can use this tool.
+* `getCurrentDateTime` returns the current date and time in an optional time zone. The time zone defaults to UTC.
+
+This guide is the MCP counterpart to the https://openliberty.io/guides/rest-intro.html[Creating a RESTful web service^] guide. It exposes the same system properties logic, but to an AI agent instead of a browser:
+
+[cols="1,1", options="header"]
+|===
+| REST (rest-intro)
+| MCP (this guide)
+
+| The `restfulWS` and `jsonb` features
+| The `mcp-1.0` and `appSecurity-5.0` features
+
+| `@Path` and `@GET` on `PropertiesResource`
+| `@Tool` and `@ToolArg` on `SystemTools`
+
+| A browser or curl calls the service
+| An AI agent such as IBM Bob, or the MCP Inspector, calls the tools
+
+| The service returns JSON
+| The tools return a `ToolResponse`
+|===
+
+[role="command"]
+include::{common-includes}/gitclone.adoc[]
+
+// =================================================================================================
+// Try what you'll build
+// =================================================================================================
+
+[role='command']
+include::{common-includes}/twyb-intro-mvnw.adoc[]
+
+When the server starts, it logs the address of the MCP endpoint. Look for the
+following message:
+
+[source, role="no_copy"]
+----
+CWMCM0008I: The MCP server endpoint: http://localhost:9080/myMcpApp/mcp
+----
+
+You call this endpoint from an MCP client rather than from a browser. Later in this
+guide, you try the tools with the MCP Inspector and with IBM Bob.
+
+[role='command']
+include::{common-includes}/twyb-end-mvnw.adoc[]
+
+// =================================================================================================
+// Enabling the MCP server
+// =================================================================================================
+
+== Enabling the MCP server
+
+Navigate to the `start` directory to begin.
+
+[role='command']
+include::{common-includes}/devmode-mvnw-start.adoc[]
+
+The `mcp-1.0` feature adds an MCP server to your application. The server listens for
+Streamable HTTP requests at the `/mcp` path of the application context root. It finds
+the tools that your application declares when the application starts.
+
+[role="code_command hotspot file=0", subs="quotes"]
+----
+#Replace the Liberty `server.xml` configuration file.#
+`src/main/liberty/config/server.xml`
+----
+
+server.xml
+[source, xml, linenums, role='code_column']
+----
+include::finish/src/main/liberty/config/server.xml[]
+----
+
+pom.xml
+[source, xml, linenums, role='code_column']
+----
+include::finish/pom.xml[]
+----
+
+Add the [hotspot=mcpFeature file=0]`mcp-1.0` feature to the
+[hotspot=featureManager file=0]`featureManager` element. This feature also enables the
+CDI, JSON-B, and Servlet features that it depends on.
+
+The rest of the file is already in the `start` project. The
+[hotspot=securityFeature file=0]`appSecurity-5.0` feature, the
+[hotspot=basicRegistry file=0]`basicRegistry` element, and the
+[hotspot=appBnd file=0]`application-bnd` element prepare the server for the next
+sections. The registry defines two users: `BobTheAdmin`, who is a member of the `Admins`
+group, and `testuser`. The `application-bnd` element maps the `Admins` group to the
+`admin` security role. The user passwords come from the `admin.password` and
+`user.password` variables, which the Maven [hotspot=passwords file=1]`pom.xml` file
+provides.
+
+The [hotspot=mcpApi file=1]`mcp-server-api` dependency in the `pom.xml` file provides
+the annotations and classes that you use to declare tools. Its scope is `provided`
+because Liberty supplies the API at run time.
+
+// =================================================================================================
+// Declaring MCP tools
+// =================================================================================================
+
+== Declaring MCP tools
+
+An MCP tool is a method of a CDI bean that has the `@Tool` annotation. When an AI client
+sends a `tools/list` request, Liberty returns the name, description, and parameters of
+each tool. When a client sends a `tools/call` request, Liberty calls the Java method and
+returns the result.
+
+[role="code_command hotspot file=0", subs="quotes"]
+----
+#Create the `SystemTools` class.#
+`src/main/java/io/openliberty/guides/mcp/SystemTools.java`
+----
+
+SystemTools.java
+[source, Java, linenums, role='code_column hide_tags=copyright,rolesAllowedImport,rolesAllowed']
+----
+include::finish/src/main/java/io/openliberty/guides/mcp/SystemTools.java[]
+----
+
+The [hotspot=appScoped]`@ApplicationScoped` annotation makes `SystemTools` a CDI managed
+bean, so the MCP server can find it and call its methods. The
+[hotspot=mcpImports]`org.mcpjava.server.tools` package contains the `@Tool`, `@ToolArg`,
+and `ToolResponse` types.
+
+The [hotspot=toolAnnotation]`@Tool` annotation registers the
+[hotspot=getSystemProperties]`getSystemProperties()` method as a tool. The `description`
+attribute is the text that an AI agent reads to decide whether the tool fits its
+task, so write it for the agent. The method returns the system properties in a
+`ToolResponse` object. The `ToolResponse.ofText()` method creates a successful text
+result.
+
+The [hotspot=getCurrentDateTime]`getCurrentDateTime()` method declares its parameter
+with the [hotspot=toolArg]`@ToolArg` annotation. The annotation sets the argument name
+and description that clients see. Because `required` is `false`, a caller can leave out
+the `timeZone` argument, and the `defaultValue` attribute supplies `UTC`.
+
+An AI agent supplies the time zone as free text, so the method checks it. When the
+[hotspot=zoneValidation]`time zone is not valid`, the method returns
+`ToolResponse.ofError()`. The agent receives a result that is marked as an error and
+that explains the problem, so it can correct the call. A thrown exception would not give
+the agent that information.
+
+// =================================================================================================
+// Securing a tool
+// =================================================================================================
+
+== Securing a tool with @RolesAllowed
+
+System properties can contain sensitive information, so only administrators should be
+able to read them. The `mcp-1.0` feature works with Jakarta security annotations.
+Add the `@RolesAllowed` annotation to the `getSystemProperties()` method to restrict it.
+
+[role="code_command hotspot file=0", subs="quotes"]
+----
+#Replace the `SystemTools` class.#
+`src/main/java/io/openliberty/guides/mcp/SystemTools.java`
+----
+
+SystemTools.java
+[source, Java, linenums, role='code_column hide_tags=copyright']
+----
+include::finish/src/main/java/io/openliberty/guides/mcp/SystemTools.java[]
+----
+
+web.xml
+[source, xml, linenums, role='code_column']
+----
+include::finish/src/main/webapp/WEB-INF/web.xml[]
+----
+
+The [hotspot=rolesAllowed file=0]`@RolesAllowed("admin")` annotation limits the
+`getSystemProperties()` tool to callers in the `admin` role. The role is declared in the
+[hotspot file=1]`web.xml` file, which is already in the `start` project. The
+`application-bnd` element that you saw in the `server.xml` file maps the role to the
+`Admins` group.
+
+The server uses the role to decide what each caller sees:
+
+[cols="2,2,2", options="header"]
+|===
+| Caller
+| `tools/list` result
+| `getSystemProperties` result
+
+| No credentials
+| Only `getCurrentDateTime`
+| HTTP `401` Unauthorized
+
+| `testuser`
+| Only `getCurrentDateTime`
+| HTTP `403` Forbidden
+
+| `BobTheAdmin`
+| Both tools
+| The system properties
+|===
+
+A tool that a caller isn't allowed to use doesn't appear in the `tools/list` result, so
+the AI agent never tries to call it.
+
+// =================================================================================================
+// Running the application
+// =================================================================================================
+
+[role='command']
+include::{common-includes}/devmode-build.adoc[]
+
+=== Calling the tools with the MCP Inspector
+
+The https://modelcontextprotocol.io/docs/tools/inspector[MCP Inspector^] is a browser
+tool for testing MCP servers. It requires https://nodejs.org[Node.js^]. In a new
+command-line session, run the following command:
+
+[role='command']
+```
+npx @modelcontextprotocol/inspector
+```
+
+The Inspector opens in your browser. Select the `Streamable HTTP` transport type, enter
+the following URL, and click *Connect*:
+
+[source, role="no_copy"]
+----
+http://localhost:9080/myMcpApp/mcp
+----
+
+Click *Tools > List Tools*. Only `getCurrentDateTime` is listed because you didn't send
+any credentials. Try the following calls:
+
+* Select `getCurrentDateTime` and click *Run Tool* without a `timeZone` value. The
+response contains the current time in UTC.
+* Enter `Asia/Tokyo` as the `timeZone` value and run the tool again. The response
+contains the current time in Tokyo.
+* Enter `Not/AZone` as the `timeZone` value and run the tool again. The result is marked
+as an error and reads `Unknown time zone: 'Not/AZone'`.
+
+To use the `getSystemProperties` tool, send the credentials of `BobTheAdmin` in an
+`Authorization` header. In the Inspector, open the *Authentication* section and add a
+custom header. Set the header name to `Authorization` and the header value to
+`Basic ` followed by the Base64 encoding of `BobTheAdmin:adminpwd`. To create the
+encoded value, run the following command:
+
+[role='command']
+```
+echo -n "BobTheAdmin:adminpwd" | base64
+```
+
+Reconnect and click *List Tools* again. Both tools are listed, and `getSystemProperties`
+returns the system properties of the JVM. Change the credentials to `testuser:userpwd`
+to see the tool disappear from the list.
+
+The passwords in this guide are sample values from the `pom.xml` file. For a real
+application, don't commit passwords. Use a user registry that is backed by your
+organization's identity provider, and use OAuth 2.0 bearer tokens instead of Basic
+authentication.
+
+=== Connecting IBM Bob
+
+IBM Bob is an MCP client, so you can ask it to call your tools. In Bob, open the MCP
+settings and select *Edit Project MCP* to open the `.bob/mcp.json` file. Add the
+following server configuration. Replace `ENCODED_CREDENTIALS` with the Base64 value that
+you created in the previous section:
+
+[source, json, role="no_copy"]
+----
+{
+  "mcpServers": {
+    "system-tools": {
+      "type": "streamable-http",
+      "url": "http://localhost:9080/myMcpApp/mcp",
+      "headers": {
+        "Authorization": "Basic ENCODED_CREDENTIALS"
+      }
+    }
+  }
+}
+----
+
+After Bob connects, ask it a question such as "What time is it in Tokyo?". Bob reads
+the tool descriptions, calls `getCurrentDateTime` with `Asia/Tokyo`, and answers with
+the result.
+
+// =================================================================================================
+// Testing the application
+// =================================================================================================
+
+== Testing the application
+
+You can test the tools by hand, but automated tests catch regressions as soon as you
+change the code. The tests in this guide send MCP requests to the running server over
+HTTP.
+
+[role="code_command hotspot file=0", subs="quotes"]
+----
+#Create the `SystemToolsIT` class.#
+`src/test/java/it/io/openliberty/guides/mcp/SystemToolsIT.java`
+----
+
+SystemToolsIT.java
+[source, Java, linenums, role='code_column hide_tags=copyright']
+----
+include::finish/src/test/java/it/io/openliberty/guides/mcp/SystemToolsIT.java[]
+----
+
+An MCP client must start a session before it can call tools. The
+[hotspot=initialize file=0]`initialize()` method sends an `initialize` request, reads
+the `Mcp-Session-Id` header from the response, and sends a `notifications/initialized`
+message. The [hotspot=post file=0]`post()` method then sends the session ID with every
+request and accepts both JSON and event stream responses, as the Streamable HTTP
+transport requires.
+
+The [hotspot=testToolsListAdmin file=0]`testToolsListForAdmin()` and
+[hotspot=testToolsListUser file=0]`testToolsListHidesAdminToolFromUser()` tests list
+the tools for `BobTheAdmin` and for `testuser`. The second test checks that the
+`getSystemProperties` tool is hidden from a user who isn't an administrator.
+
+The [hotspot=testDateTimeDefault file=0]`testGetCurrentDateTimeDefaultsToUtc()`,
+[hotspot=testDateTimeZone file=0]`testGetCurrentDateTimeWithTimeZone()`, and
+[hotspot=testDateTimeInvalid file=0]`testGetCurrentDateTimeWithInvalidTimeZone()` tests
+cover the `getCurrentDateTime` tool. They check the default time zone, a requested time
+zone, and the error result for a time zone that doesn't exist.
+
+The [hotspot=testPropertiesAdmin file=0]`testGetSystemPropertiesAsAdmin()`,
+[hotspot=testPropertiesAnonymous file=0]`testGetSystemPropertiesWithoutCredentials()`,
+and [hotspot=testPropertiesUser file=0]`testGetSystemPropertiesAsNonAdmin()` tests
+cover the `getSystemProperties` tool. They check that an administrator receives the
+properties, that a caller without credentials receives a `401` response, and that
+`testuser` receives a `403` response.
+
+The tests find the server with the system properties that the Maven `pom.xml` file
+passes in through the [hotspot=testsysprops file=1]`systemPropertyVariables` element.
+
+[role='command']
+include::{common-includes}/devmode-test.adoc[]
+
+You see the following output:
+
+[source, role="no_copy"]
+----
+-------------------------------------------------------
+ T E S T S
+-------------------------------------------------------
+Running it.io.openliberty.guides.mcp.SystemToolsIT
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.282 s - in it.io.openliberty.guides.mcp.SystemToolsIT
+
+Results:
+
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
+----
+
+To see whether the tests detect a failure, remove the `@RolesAllowed` annotation
+from the `getSystemProperties()` method and run the tests again. The tests for
+`testuser` and for a caller without credentials fail.
+
+[role='command']
+include::{common-includes}/devmode-quit-ctrlc.adoc[]
+
+== Great work! You're done!
+
+You just exposed Java business logic as AI tools in Open Liberty by using the `mcp-1.0`
+feature. You declared tools with the `@Tool` and `@ToolArg` annotations, returned errors
+with `ToolResponse.ofError()`, and restricted a tool with `@RolesAllowed`.
+
+Try the related guide to see how the same system properties logic is exposed as a
+RESTful web service.
+
+include::{common-includes}/attribution.adoc[subs="attributes"]

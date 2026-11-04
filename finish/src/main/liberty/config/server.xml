@@ -1,0 +1,37 @@
+<server description="MCP Server Guide Liberty server">
+  <!-- tag::featureManager[] -->
+  <featureManager>
+      <!-- tag::mcpFeature[] -->
+      <feature>mcp-1.0</feature>
+      <!-- end::mcpFeature[] -->
+      <!-- tag::securityFeature[] -->
+      <feature>appSecurity-5.0</feature>
+      <!-- end::securityFeature[] -->
+  </featureManager>
+  <!-- end::featureManager[] -->
+
+  <httpEndpoint httpPort="${http.port}" httpsPort="${https.port}"
+                id="defaultHttpEndpoint" host="localhost" />
+
+  <!-- tag::basicRegistry[] -->
+  <basicRegistry id="basic" realm="BasicRealm">
+      <user name="BobTheAdmin" password="${admin.password}"/>
+      <user name="testuser" password="${user.password}"/>
+      <group name="Admins">
+          <member name="BobTheAdmin"/>
+      </group>
+  </basicRegistry>
+  <!-- end::basicRegistry[] -->
+
+  <!-- tag::webApplication[] -->
+  <webApplication location="guide-mcp-server.war" contextRoot="${app.context.root}">
+      <!-- tag::appBnd[] -->
+      <application-bnd>
+          <security-role name="admin">
+              <group name="Admins"/>
+          </security-role>
+      </application-bnd>
+      <!-- end::appBnd[] -->
+  </webApplication>
+  <!-- end::webApplication[] -->
+</server>
