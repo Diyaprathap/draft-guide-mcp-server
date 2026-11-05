@@ -60,8 +60,25 @@ This guide is the MCP counterpart to the https://openliberty.io/guides/rest-intr
 | The tools return a `ToolResponse`
 |===
 
-[role="command"]
-include::{common-includes}/gitclone.adoc[]
+// TEMPORARY: points at the personal draft repo. Before hand-off to the Open Liberty team,
+// replace everything from here to the next separator with:
+//   [role="command"]
+//   include::{common-includes}/gitclone.adoc[]
+== Getting started
+
+The fastest way to work through this guide is to clone the https://github.com/Diyaprathap/draft-guide-{projectid}.git[Git repository^] and use the projects that are provided inside:
+
+[source#git_clone, role="command", subs="attributes"]
+----
+git clone -b draft https://github.com/Diyaprathap/draft-guide-{projectid}.git
+cd draft-guide-{projectid}
+----
+
+The `start` directory contains the starting project that you will build upon.
+
+The `finish` directory contains the finished project that you will build.
+
+Before you begin, make sure you have all the necessary [.prerequisites]#prerequisites#.
 
 // =================================================================================================
 // Try what you'll build
