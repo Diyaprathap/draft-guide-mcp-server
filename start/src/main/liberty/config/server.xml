@@ -1,6 +1,6 @@
 <server description="MCP Server Guide Liberty server">
   <featureManager>
-      <feature>appSecurity-5.0</feature>
+      <feature>appSecurity-6.0</feature>
   </featureManager>
 
   <httpEndpoint httpPort="${http.port}" httpsPort="${https.port}"

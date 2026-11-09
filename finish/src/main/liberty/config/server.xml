@@ -5,7 +5,7 @@
       <feature>mcp-1.0</feature>
       <!-- end::mcpFeature[] -->
       <!-- tag::securityFeature[] -->
-      <feature>appSecurity-5.0</feature>
+      <feature>appSecurity-6.0</feature>
       <!-- end::securityFeature[] -->
   </featureManager>
   <!-- end::featureManager[] -->

@@ -48,7 +48,7 @@ This guide is the MCP counterpart to the https://openliberty.io/guides/rest-intr
 | MCP (this guide)
 
 | The `restfulWS` and `jsonb` features
-| The `mcp-1.0` and `appSecurity-5.0` features
+| The `mcp-1.0` and `appSecurity-6.0` features
 
 | `@Path` and `@GET` on `PropertiesResource`
 | `@Tool` and `@ToolArg` on `SystemTools`
@@ -139,7 +139,7 @@ Add the [hotspot=mcpFeature file=0]`mcp-1.0` feature to the
 CDI, JSON-B, and Servlet features that it depends on.
 
 The rest of the file is already in the `start` project. The
-[hotspot=securityFeature file=0]`appSecurity-5.0` feature, the
+[hotspot=securityFeature file=0]`appSecurity-6.0` feature, the
 [hotspot=basicRegistry file=0]`basicRegistry` element, and the
 [hotspot=appBnd file=0]`application-bnd` element prepare the server for the next
 sections. The registry defines two users: `BobTheAdmin`, who is a member of the `Admins`
