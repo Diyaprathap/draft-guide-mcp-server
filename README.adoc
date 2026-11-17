@@ -360,6 +360,12 @@ SystemToolsIT.java
 include::finish/src/test/java/it/io/openliberty/guides/mcp/SystemToolsIT.java[]
 ----
 
+pom.xml
+[source, xml, linenums, role='code_column']
+----
+include::finish/pom.xml[]
+----
+
 An MCP client must start a session before it can call tools. The
 [hotspot=initialize file=0]`initialize()` method sends an `initialize` request, reads
 the `Mcp-Session-Id` header from the response, and sends a `notifications/initialized`
