@@ -6,9 +6,6 @@ build/
 finish/src/main/liberty/wlp/
 start/src/main/liberty/wlp/
 
-# Maven wrapper metadata
-.mvn/wrapper/maven-wrapper.jar
-
 # IDE files
 .idea/
 *.iml

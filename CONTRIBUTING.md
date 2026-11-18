@@ -4,7 +4,7 @@ Our [Code of Conduct](https://github.com/OpenLiberty/open-liberty/blob/release/C
 
 ## How to contribute
 
-To contribute, open a pull request (PR) against the `prod` branch. The PR will be reviewed by the Open Liberty guides team.
+To contribute, open a pull request (PR) against the `draft` branch. The PR will be reviewed by the Open Liberty guides team.
 
 For substantial changes, open an issue first to discuss the proposed change before submitting a PR.
 
@@ -13,8 +13,8 @@ For substantial changes, open an issue first to discuss the proposed change befo
 Clone the repository and run the finished application:
 
 ```bash
-git clone https://github.com/openliberty/guide-mcp-server.git
-cd guide-mcp-server/finish
+git clone -b draft https://github.com/Diyaprathap/draft-guide-mcp-server.git
+cd draft-guide-mcp-server/finish
 ./mvnw liberty:run
 ```
 
