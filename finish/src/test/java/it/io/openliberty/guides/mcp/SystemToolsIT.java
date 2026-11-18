@@ -30,6 +30,7 @@ public class SystemToolsIT {
     private static String url;
     private static String adminAuth;
     private static String userAuth;
+    private static String noRoleAuth;
 
     @BeforeAll
     public static void setUp() {
@@ -38,6 +39,7 @@ public class SystemToolsIT {
         url = "http://localhost:" + port + "/" + contextRoot + "/mcp";
         adminAuth = basicAuth("BobTheAdmin", System.getProperty("admin.password"));
         userAuth = basicAuth("testuser", System.getProperty("user.password"));
+        noRoleAuth = basicAuth("noRoleUser", System.getProperty("noRole.password"));
     }
 
     // tag::testToolsListAdmin[]
@@ -70,6 +72,37 @@ public class SystemToolsIT {
             "The getSystemProperties tool must be hidden from non-admin users");
     }
     // end::testToolsListUser[]
+
+    // tag::testToolsListNoRole[]
+    @Test
+    public void testToolsListHidesAdminToolFromUserWithNoRole() throws Exception {
+        String sessionId = initialize(noRoleAuth);
+        HttpResponse<String> response = post(noRoleAuth, sessionId,
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}");
+
+        int expected = 200;
+        int actual = response.statusCode();
+        assertEquals(expected, actual, "Unexpected response code");
+        assertTrue(response.body().contains("getCurrentDateTime"),
+            "The getCurrentDateTime tool is missing");
+        assertFalse(response.body().contains("getSystemProperties"),
+            "The getSystemProperties tool must be hidden from a user with no role");
+    }
+    // end::testToolsListNoRole[]
+
+    // tag::testToolsListAnonymous[]
+    @Test
+    public void testToolsListHidesAdminToolFromAnonymous() throws Exception {
+        String sessionId = initialize(null);
+        HttpResponse<String> response = post(null, sessionId,
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}");
+
+        assertTrue(response.body().contains("getCurrentDateTime"),
+            "The getCurrentDateTime tool is missing");
+        assertFalse(response.body().contains("getSystemProperties"),
+            "The getSystemProperties tool must be hidden from anonymous callers");
+    }
+    // end::testToolsListAnonymous[]
 
     // tag::testDateTimeDefault[]
     @Test
@@ -151,6 +184,19 @@ public class SystemToolsIT {
         assertEquals(expected, actual, "Unexpected response code");
     }
     // end::testPropertiesUser[]
+
+    // tag::testPropertiesNoRole[]
+    @Test
+    public void testGetSystemPropertiesAsUserWithNoRole() throws Exception {
+        String sessionId = initialize(noRoleAuth);
+        HttpResponse<String> response = callTool(noRoleAuth, sessionId,
+            "getSystemProperties", "{}");
+
+        int expected = 403;
+        int actual = response.statusCode();
+        assertEquals(expected, actual, "Unexpected response code");
+    }
+    // end::testPropertiesNoRole[]
 
     // tag::initialize[]
     private static String initialize(String auth) throws Exception {

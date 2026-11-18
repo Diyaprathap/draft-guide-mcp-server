@@ -138,15 +138,21 @@ Add the [hotspot=mcpFeature file=0]`mcp-1.0` feature to the
 [hotspot=featureManager file=0]`featureManager` element. This feature also enables the
 CDI, JSON-B, and Servlet features that it depends on.
 
-The rest of the file is already in the `start` project. The
-[hotspot=securityFeature file=0]`appSecurity-6.0` feature, the
-[hotspot=basicRegistry file=0]`basicRegistry` element, and the
-[hotspot=appBnd file=0]`application-bnd` element prepare the server for the next
-sections. The registry defines two users: `BobTheAdmin`, who is a member of the `Admins`
-group, and `testuser`. The `application-bnd` element maps the `Admins` group to the
-`admin` security role. The user passwords come from the `admin.password` and
-`user.password` variables, which the Maven [hotspot=passwords file=1]`pom.xml` file
-provides.
+The rest of the file is already in the `start` project. It prepares the server for the
+next sections:
+
+* The [hotspot=securityFeature file=0]`appSecurity-6.0` feature enables application
+security, which includes the Jakarta security annotations.
+* The [hotspot=basicRegistry file=0]`basicRegistry` element defines the users. A basic
+registry stores users and groups in the `server.xml` file, which is enough for this
+guide. `BobTheAdmin` is a member of the `Admins` group. `testuser` and `noRoleUser`
+aren't members of any group. The user passwords come from the `admin.password`,
+`user.password`, and `noRole.password` variables, which the Maven
+[hotspot=passwords file=1]`pom.xml` file provides.
+* The [hotspot=appBnd file=0]`application-bnd` element maps the `Admins` group to the
+`admin` security role. A role is the application's name for a kind of caller, and the
+mapping connects it to the users in the registry. Any member of the `Admins` group has
+the `admin` role.
 
 The [hotspot=mcpApi file=1]`mcp-server-api` dependency in the `pom.xml` file provides
 the annotations and classes that you use to declare tools. Its scope is `provided`
@@ -232,25 +238,37 @@ The [hotspot=rolesAllowed file=0]`@RolesAllowed("admin")` annotation limits the
 `application-bnd` element that you saw in the `server.xml` file maps the role to the
 `Admins` group.
 
-The server uses the role to decide what each caller sees:
+The registry and the role mapping give each caller a different level of access. The
+server uses them to decide what each caller sees:
 
-[cols="2,2,2", options="header"]
+[cols="2,2,2,3", options="header"]
 |===
 | Caller
-| `tools/list` result
-| `getSystemProperties` result
-
-| No credentials
-| Only `getCurrentDateTime`
-| HTTP `401` Unauthorized
-
-| `testuser`
-| Only `getCurrentDateTime`
-| HTTP `403` Forbidden
+| Authentication
+| Authorization
+| Behavior
 
 | `BobTheAdmin`
-| Both tools
-| The system properties
+| Successful
+| `admin` role
+| Both tools are listed and callable.
+
+| `testuser`
+| Successful
+| No `admin` role
+| Only `getCurrentDateTime` is listed. Calling `getSystemProperties` returns HTTP `403`
+Forbidden.
+
+| `noRoleUser`
+| Successful
+| No application role
+| Same as `testuser`.
+
+| No credentials
+| Not authenticated
+| None
+| Only `getCurrentDateTime` is listed. Calling `getSystemProperties` returns HTTP `401`
+Unauthorized.
 |===
 
 A tool that a caller isn't allowed to use doesn't appear in the `tools/list` result, so
@@ -373,10 +391,13 @@ message. The [hotspot=post file=0]`post()` method then sends the session ID with
 request and accepts both JSON and event stream responses, as the Streamable HTTP
 transport requires.
 
-The [hotspot=testToolsListAdmin file=0]`testToolsListForAdmin()` and
-[hotspot=testToolsListUser file=0]`testToolsListHidesAdminToolFromUser()` tests list
-the tools for `BobTheAdmin` and for `testuser`. The second test checks that the
-`getSystemProperties` tool is hidden from a user who isn't an administrator.
+The [hotspot=testToolsListAdmin file=0]`testToolsListForAdmin()` test lists the tools
+for `BobTheAdmin`. The
+[hotspot=testToolsListUser file=0]`testToolsListHidesAdminToolFromUser()`,
+[hotspot=testToolsListNoRole file=0]`testToolsListHidesAdminToolFromUserWithNoRole()`,
+and [hotspot=testToolsListAnonymous file=0]`testToolsListHidesAdminToolFromAnonymous()`
+tests check that the `getSystemProperties` tool is hidden from `testuser`, from
+`noRoleUser`, and from a caller without credentials.
 
 The [hotspot=testDateTimeDefault file=0]`testGetCurrentDateTimeDefaultsToUtc()`,
 [hotspot=testDateTimeZone file=0]`testGetCurrentDateTimeWithTimeZone()`, and
@@ -386,10 +407,11 @@ zone, and the error result for a time zone that doesn't exist.
 
 The [hotspot=testPropertiesAdmin file=0]`testGetSystemPropertiesAsAdmin()`,
 [hotspot=testPropertiesAnonymous file=0]`testGetSystemPropertiesWithoutCredentials()`,
-and [hotspot=testPropertiesUser file=0]`testGetSystemPropertiesAsNonAdmin()` tests
+[hotspot=testPropertiesUser file=0]`testGetSystemPropertiesAsNonAdmin()`, and
+[hotspot=testPropertiesNoRole file=0]`testGetSystemPropertiesAsUserWithNoRole()` tests
 cover the `getSystemProperties` tool. They check that an administrator receives the
 properties, that a caller without credentials receives a `401` response, and that
-`testuser` receives a `403` response.
+`testuser` and `noRoleUser` receive a `403` response.
 
 The tests find the server with the system properties that the Maven `pom.xml` file
 passes in through the [hotspot=testsysprops file=1]`systemPropertyVariables` element.
@@ -405,16 +427,16 @@ You see the following output:
  T E S T S
 -------------------------------------------------------
 Running it.io.openliberty.guides.mcp.SystemToolsIT
-Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.282 s - in it.io.openliberty.guides.mcp.SystemToolsIT
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.282 s - in it.io.openliberty.guides.mcp.SystemToolsIT
 
 Results:
 
-Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
 ----
 
 To see whether the tests detect a failure, remove the `@RolesAllowed` annotation
 from the `getSystemProperties()` method and run the tests again. The tests for
-`testuser` and for a caller without credentials fail.
+`testuser`, `noRoleUser`, and a caller without credentials fail.
 
 [role='command']
 include::{common-includes}/devmode-quit-ctrlc.adoc[]

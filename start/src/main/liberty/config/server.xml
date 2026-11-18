@@ -9,6 +9,7 @@
   <basicRegistry id="basic" realm="BasicRealm">
       <user name="BobTheAdmin" password="${admin.password}"/>
       <user name="testuser" password="${user.password}"/>
+      <user name="noRoleUser" password="${noRole.password}"/>
       <group name="Admins">
           <member name="BobTheAdmin"/>
       </group>

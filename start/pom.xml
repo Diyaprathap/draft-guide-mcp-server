@@ -18,6 +18,7 @@
         <liberty.var.app.context.root>myMcpApp</liberty.var.app.context.root>
         <liberty.var.admin.password>adminpwd</liberty.var.admin.password>
         <liberty.var.user.password>userpwd</liberty.var.user.password>
+        <liberty.var.noRole.password>norolepwd</liberty.var.noRole.password>
     </properties>
 
     <dependencies>
@@ -63,6 +64,7 @@
                         <context.root>${liberty.var.app.context.root}</context.root>
                         <admin.password>${liberty.var.admin.password}</admin.password>
                         <user.password>${liberty.var.user.password}</user.password>
+                        <noRole.password>${liberty.var.noRole.password}</noRole.password>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
