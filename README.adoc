@@ -292,38 +292,47 @@ command-line session, run the following command:
 npx @modelcontextprotocol/inspector
 ```
 
-The Inspector opens in your browser. Select the `Streamable HTTP` transport type, enter
-the following URL, and click *Connect*:
+The Inspector opens in your browser. Add your server to it:
 
+. Click *Add Servers* and select *Add manually*.
+. Enter `system-tools` as the *Server ID*.
+. Select `streamable-http` as the *Transport*.
+. Enter the following URL, and click *Add*:
++
 [source, role="no_copy"]
 ----
 http://localhost:9080/myMcpApp/mcp
 ----
+. Turn on the switch on the `system-tools` server card to connect.
 
-Click *Tools > List Tools*. Only `getCurrentDateTime` is listed because you didn't send
-any credentials. Try the following calls:
+Open the *Tools* tab. The Inspector lists the tools as soon as it connects. Only
+`getCurrentDateTime` is listed because you didn't send any credentials. Try the
+following calls. Select `getCurrentDateTime`, enter a value in the `timeZone` field, and
+click *Execute Tool*:
 
-* Select `getCurrentDateTime` and click *Run Tool* without a `timeZone` value. The
-response contains the current time in UTC.
-* Enter `Asia/Tokyo` as the `timeZone` value and run the tool again. The response
-contains the current time in Tokyo.
-* Enter `Not/AZone` as the `timeZone` value and run the tool again. The result is marked
-as an error and reads `Unknown time zone: 'Not/AZone'`.
+* Leave the `timeZone` field empty. The result contains the current time in UTC.
+* Enter `Asia/Tokyo`. The result contains the current time in Tokyo.
+* Enter `Not/AZone`. The result is a red *Tool Error* that explains that the time zone
+is unknown.
 
 To use the `getSystemProperties` tool, send the credentials of `BobTheAdmin` in an
-`Authorization` header. In the Inspector, open the *Authentication* section and add a
-custom header. Set the header name to `Authorization` and the header value to
-`Basic ` followed by the Base64 encoding of `BobTheAdmin:adminpwd`. To create the
-encoded value, run the following command:
+`Authorization` header. Create the Base64 encoding of `BobTheAdmin:adminpwd` by running
+the following command:
 
 [role='command']
 ```
 echo -n "BobTheAdmin:adminpwd" | base64
 ```
 
-Reconnect and click *List Tools* again. Both tools are listed, and `getSystemProperties`
-returns the system properties of the JVM. Change the credentials to `testuser:userpwd`
-to see the tool disappear from the list.
+Turn off the switch on the `system-tools` server card. Click *Settings* on the card,
+open the *Custom Headers* section, and click *+ Add Header*. Enter `Authorization` as the
+*Key*. Enter `Basic ` followed by the encoded value as the *Value*. Close the settings,
+and turn the switch on again. The header takes effect when you connect.
+
+Open the *Tools* tab again. Both tools are listed, and `getSystemProperties` returns the
+system properties of the JVM when you execute it. Change the header value to the
+Base64 encoding of `testuser:userpwd` and reconnect to see the tool disappear from the
+list.
 
 The passwords in this guide are sample values from the `pom.xml` file. For a real
 application, don't commit passwords. Use a user registry that is backed by your
@@ -332,8 +341,8 @@ authentication.
 
 === Connecting IBM Bob
 
-IBM Bob is an MCP client, so you can ask it to call your tools. In Bob, open the MCP
-settings and select *Edit Project MCP* to open the `.bob/mcp.json` file. Add the
+IBM Bob is an MCP client, so you can ask it to call your tools. In Bob, click the *Settings*
+icon, select the *MCP* tab, and click *Edit Project MCP* to open the `.bob/mcp.json` file. Add the
 following server configuration. Replace `ENCODED_CREDENTIALS` with the Base64 value that
 you created in the previous section:
 
@@ -352,9 +361,10 @@ you created in the previous section:
 }
 ----
 
-After Bob connects, ask it a question such as "What time is it in Tokyo?". Bob reads
-the tool descriptions, calls `getCurrentDateTime` with `Asia/Tokyo`, and answers with
-the result.
+After Bob connects, the `system-tools` server shows a status indicator in the *MCP* tab.
+Ask it a question such as "What time is it in Tokyo?". Bob reads
+the tool descriptions, asks you to approve the tool call, calls `getCurrentDateTime`
+with `Asia/Tokyo`, and answers with the result.
 
 // =================================================================================================
 // Testing the application
