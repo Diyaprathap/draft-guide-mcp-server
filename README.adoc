@@ -361,8 +361,12 @@ you created in the previous section:
 }
 ----
 
-After Bob connects, the `system-tools` server shows a status indicator in the *MCP* tab.
-Ask it a question such as "What time is it in Tokyo?". Bob reads
+Bob loads the file when you save it. In the *MCP* tab, select the `system-tools` server.
+Its *Status* is *Connected*, and its *Tools* list shows `getSystemProperties` and
+`getCurrentDateTime`. Neither tool is set to *Always allow*, so Bob asks for your
+approval before each call.
+
+Ask Bob a question such as "What time is it in Tokyo?". Bob reads
 the tool descriptions, asks you to approve the tool call, calls `getCurrentDateTime`
 with `Asia/Tokyo`, and answers with the result.
 
