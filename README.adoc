@@ -87,8 +87,16 @@ Before you begin, make sure you have all the necessary [.prerequisites]#prerequi
 [role='command']
 include::{common-includes}/twyb-intro-mvnw.adoc[]
 
-When the server starts, it logs the address of the MCP endpoint. Look for the
-following message:
+When the server starts, the MCP endpoint is available at the `/mcp` path of the
+application context root:
+
+[source, role="no_copy"]
+----
+http://localhost:9080/myMcpApp/mcp
+----
+
+The server also writes the following message to its `messages.log` file, which is in the
+`target/liberty/wlp/usr/servers/defaultServer/logs` directory:
 
 [source, role="no_copy"]
 ----
@@ -97,7 +105,8 @@ CWMCM0008I: The MCP server endpoint: http://localhost:9080/myMcpApp/mcp
 
 You call this endpoint from an MCP client rather than from a browser, because the
 endpoint doesn't support the `GET` requests that a browser sends. IBM Bob is an MCP
-client. In Bob, click the *Settings* icon, select the *MCP* tab, and click *Edit Project
+client. Open the directory that you cloned in Bob, so that Bob has a project to store its
+configuration in. Click the *Settings* icon, select the *MCP* tab, and click *Edit Project
 MCP* to open the `.bob/mcp.json` file. Add the following server configuration:
 
 [source, json, role="no_copy"]
