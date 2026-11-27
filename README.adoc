@@ -121,7 +121,8 @@ MCP* to open the `.bob/mcp.json` file. Add the following server configuration:
 }
 ----
 
-Bob loads the file when you save it. In the *MCP* tab, select the `system-tools` server.
+Bob loads the file when you save it. If the `system-tools` server isn't listed, refresh
+the server list in the *MCP* tab. Select the `system-tools` server.
 Its *Status* is *Connected*. Its *Tools* list shows only `getCurrentDateTime`, because
 you didn't send any credentials. You see why in the "Securing a tool with @RolesAllowed"
 section.
