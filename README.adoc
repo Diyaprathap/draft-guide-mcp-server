@@ -17,7 +17,7 @@
 :page-related-guides: ['rest-intro']
 :page-permalink: /guides/{projectid}
 :page-seo-title: Exposing Liberty Business Logic as AI Tools using Model Context Protocol
-:page-seo-description: A getting started tutorial on how to use the Open Liberty mcp-1.0 feature to expose system properties and the current date and time as AI-callable tools using @Tool and @ToolArg annotations, secure a tool with @RolesAllowed, test with the MCP Inspector, and connect to AI clients. Related guide: rest-intro.
+:page-seo-description: A getting started tutorial on how to use the Open Liberty mcp-1.0 feature to expose system properties and the current date and time as AI-callable tools using @Tool and @ToolArg annotations, secure a tool with @RolesAllowed, and connect to AI clients such as IBM Bob. Related guide: rest-intro.
 :common-includes: https://raw.githubusercontent.com/OpenLiberty/guides-common/prod
 :source-highlighter: prettify
 = Exposing Java business logic as AI tools with Model Context Protocol in Open Liberty
@@ -54,7 +54,7 @@ This guide is the MCP counterpart to the https://openliberty.io/guides/rest-intr
 | `@Tool` and `@ToolArg` on `SystemTools`
 
 | A browser or curl calls the service
-| An AI agent such as IBM Bob, or the MCP Inspector, calls the tools
+| An AI agent such as IBM Bob calls the tools
 
 | The service returns JSON
 | The tools return a `ToolResponse`
@@ -95,8 +95,32 @@ following message:
 CWMCM0008I: The MCP server endpoint: http://localhost:9080/myMcpApp/mcp
 ----
 
-You call this endpoint from an MCP client rather than from a browser. Later in this
-guide, you try the tools with the MCP Inspector and with IBM Bob.
+You call this endpoint from an MCP client rather than from a browser, because the
+endpoint doesn't support the `GET` requests that a browser sends. IBM Bob is an MCP
+client. In Bob, click the *Settings* icon, select the *MCP* tab, and click *Edit Project
+MCP* to open the `.bob/mcp.json` file. Add the following server configuration:
+
+[source, json, role="no_copy"]
+----
+{
+  "mcpServers": {
+    "system-tools": {
+      "type": "streamable-http",
+      "url": "http://localhost:9080/myMcpApp/mcp"
+    }
+  }
+}
+----
+
+Bob loads the file when you save it. In the *MCP* tab, select the `system-tools` server.
+Its *Status* is *Connected*. Its *Tools* list shows only `getCurrentDateTime`, because
+you didn't send any credentials. You see why in the "Securing a tool with @RolesAllowed"
+section.
+
+Ask Bob a question such as "What time is it in Tokyo?". Bob reads the tool descriptions,
+calls `getCurrentDateTime` with `Asia/Tokyo`, and answers with the result. Depending on
+your auto-approval settings, Bob might ask you to approve the tool call first. Other MCP
+clients work in the same way.
 
 [role='command']
 include::{common-includes}/twyb-end-mvnw.adoc[]
@@ -189,7 +213,7 @@ and `ToolResponse` types.
 The [hotspot=toolAnnotation]`@Tool` annotation registers the
 [hotspot=getSystemProperties]`getSystemProperties()` method as a tool. The `description`
 attribute is the text that an AI agent reads to decide whether the tool fits its
-task, so write it for the agent. The method returns the system properties in a
+task, so write the description for that agent. The method returns the system properties in a
 `ToolResponse` object. The `ToolResponse.ofText()` method creates a successful text
 result.
 
@@ -281,94 +305,26 @@ the AI agent never tries to call it.
 [role='command']
 include::{common-includes}/devmode-build.adoc[]
 
-=== Calling the tools with the MCP Inspector
+=== Seeing the effect of the role
 
-The https://modelcontextprotocol.io/docs/tools/inspector[MCP Inspector^] is a browser
-tool for testing MCP servers. It requires https://nodejs.org[Node.js^]. In a new
-command-line session, run the following command:
+Bob is connected without credentials, so it's an anonymous caller. Ask Bob a question
+such as "What are the Java system properties of the server?". Bob can't use the
+`getSystemProperties` tool, because the tool isn't in its list. The `@RolesAllowed`
+annotation hides the tool from callers that aren't in the `admin` role, so the agent never
+tries to use it.
 
-[role='command']
-```
-npx @modelcontextprotocol/inspector
-```
-
-The Inspector opens in your browser. Add your server to it:
-
-. Click *Add Servers* and select *Add manually*.
-. Enter `system-tools` as the *Server ID*.
-. Select `streamable-http` as the *Transport*.
-. Enter the following URL, and click *Add*:
-+
-[source, role="no_copy"]
-----
-http://localhost:9080/myMcpApp/mcp
-----
-. Turn on the switch on the `system-tools` server card to connect.
-
-Open the *Tools* tab. The Inspector lists the tools as soon as it connects. Only
-`getCurrentDateTime` is listed because you didn't send any credentials. Try the
-following calls. Select `getCurrentDateTime`, enter a value in the `timeZone` field, and
-click *Execute Tool*:
-
-* Leave the `timeZone` field empty. The result contains the current time in UTC.
-* Enter `Asia/Tokyo`. The result contains the current time in Tokyo.
-* Enter `Not/AZone`. The result is a red *Tool Error* that explains that the time zone
+Try the time zone error as well. Ask Bob "What time is it in Not/AZone?". The
+`getCurrentDateTime` tool returns an error result, and Bob tells you that the time zone
 is unknown.
 
-To use the `getSystemProperties` tool, send the credentials of `BobTheAdmin` in an
-`Authorization` header. Create the Base64 encoding of `BobTheAdmin:adminpwd` by running
-the following command:
-
-[role='command']
-```
-echo -n "BobTheAdmin:adminpwd" | base64
-```
-
-Turn off the switch on the `system-tools` server card. Click *Settings* on the card,
-open the *Custom Headers* section, and click *+ Add Header*. Enter `Authorization` as the
-*Key*. Enter `Basic ` followed by the encoded value as the *Value*. Close the settings,
-and turn the switch on again. The header takes effect when you connect.
-
-Open the *Tools* tab again. Both tools are listed, and `getSystemProperties` returns the
-system properties of the JVM when you execute it. Change the header value to the
-Base64 encoding of `testuser:userpwd` and reconnect to see the tool disappear from the
-list.
+The tests in the next section call the tools as `BobTheAdmin`, `testuser`, `noRoleUser`,
+and a caller without credentials, so they cover the cases that an anonymous client can't
+reach.
 
 The passwords in this guide are sample values from the `pom.xml` file. For a real
 application, don't commit passwords. Use a user registry that is backed by your
-organization's identity provider, and use OAuth 2.0 bearer tokens instead of Basic
-authentication.
-
-=== Connecting IBM Bob
-
-IBM Bob is an MCP client, so you can ask it to call your tools. In Bob, click the *Settings*
-icon, select the *MCP* tab, and click *Edit Project MCP* to open the `.bob/mcp.json` file. Add the
-following server configuration. Replace `ENCODED_CREDENTIALS` with the Base64 value that
-you created in the previous section:
-
-[source, json, role="no_copy"]
-----
-{
-  "mcpServers": {
-    "system-tools": {
-      "type": "streamable-http",
-      "url": "http://localhost:9080/myMcpApp/mcp",
-      "headers": {
-        "Authorization": "Basic ENCODED_CREDENTIALS"
-      }
-    }
-  }
-}
-----
-
-Bob loads the file when you save it. In the *MCP* tab, select the `system-tools` server.
-Its *Status* is *Connected*, and its *Tools* list shows `getSystemProperties` and
-`getCurrentDateTime`.
-
-Ask Bob a question such as "What time is it in Tokyo?". Bob reads
-the tool descriptions, calls `getCurrentDateTime` with `Asia/Tokyo`, and answers with
-the result. Depending on your auto-approval settings, Bob might ask you to approve the
-tool call first.
+organization's identity provider, send credentials only over HTTPS, and use OAuth 2.0
+bearer tokens instead of Basic authentication.
 
 // =================================================================================================
 // Testing the application
